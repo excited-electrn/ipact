@@ -1,6 +1,9 @@
+
 #include <cstdio>
 #include <vector>
+
 #include "io/tun_device.hpp"
+#include "net/ipv4.hpp"
 
 static void hexdump(const uint8_t* p, size_t n) {
 	for (size_t i  = 0; i < n; i+=16) {
@@ -31,5 +34,14 @@ int main() {
 
 		std::printf("--- packet, %zd bytes ---\n", n);
 		hexdump(buf.data(), static_cast<size_t>(n));
+
+		std::printf("--- IPv4 data ---\n");
+		std::optional<Ipv4View> ipView = parse_ipv4(std::span<const uint8_t>(buf));
+		if (ipView.has_value()) {
+			std::printf("total_len %u\n", ipView.value().header.total_len);
+		} else {
+			std::printf("Ipv4View parse error\n");
+		}
+		std::printf("\n");
 	}
 }

@@ -24,4 +24,5 @@ if(IPACT_SANITIZE)
 endif()
 
 add_executable(tun_dump examples/tun_dump.cpp)
+target_include_directories(tun_dump PRIVATE src)
 target_link_libraries(tun_dump ipact)
