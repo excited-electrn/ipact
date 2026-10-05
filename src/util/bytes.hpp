@@ -8,8 +8,8 @@ inline uint16_t read_big_endian_16(std::span<const uint8_t> buf, size_t offset) 
 }
 
 inline uint32_t read_big_endian_32(std::span<const uint8_t> buf, size_t offset) {
-	return  (uint32_t(buf[offset] << 24)) | (uint32_t(buf[offset+1] << 16)) |
-			(uint32_t(buf[offset+2] << 8)) | (uint32_t(buf[offset+3]));
+	return  (uint32_t(buf[offset]) << 24) | (uint32_t(buf[offset+1]) << 16) |
+			(uint32_t(buf[offset+2]) << 8) | (uint32_t(buf[offset+3]));
 }
 
 inline void write_big_endian_16(std::span<uint8_t> buf, size_t offset, uint16_t val) {

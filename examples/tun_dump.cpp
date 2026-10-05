@@ -36,7 +36,7 @@ int main() {
 		hexdump(buf.data(), static_cast<size_t>(n));
 
 		std::printf("--- IPv4 data ---\n");
-		std::optional<Ipv4View> ipView = parse_ipv4(std::span<const uint8_t>(buf));
+		std::optional<Ipv4View> ipView = parse_ipv4(std::span<const uint8_t>(buf.data(), static_cast<size_t>(n)));
 		if (ipView.has_value()) {
 			std::printf("total_len %u\n", ipView.value().header.total_len);
 		} else {

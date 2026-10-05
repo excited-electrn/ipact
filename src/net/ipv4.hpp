@@ -85,7 +85,7 @@ inline std::vector<uint8_t> build_ipv4(uint32_t src, uint32_t dst, IpProto proto
 	p[1] = 0;
 	write_big_endian_16(p, 2, uint16_t(p.size()));
 	write_big_endian_16(p, 4, id);
-	write_big_endian_16(p, 9, 0x4000);
+	write_big_endian_16(p, 6, 0x4000);
 	p[8] = 64;
 	p[9] = uint8_t(proto);
 	write_big_endian_16(p, 10, 0);
