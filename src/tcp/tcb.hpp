@@ -8,6 +8,7 @@
 #include "tcp/conn_key.hpp"
 #include "tcp/seq.hpp"
 #include "util/bytes_queue.hpp"
+#include "tcp/rtt.hpp"
 
 enum class State {
     Closed, Listen, SynSent, SynReceived, Established,
@@ -81,6 +82,27 @@ struct Tcb {
 
     // timers
     Time timewait_deadline{};
+
+    //  retransmission timer and RTT measurement
+    RttEstimator rtt;
+    bool     rto_armed = false;
+    Time     rto_deadline{};
+    int      retries = 0;            // consecutive timeouts without progress
+    bool     rtt_active = false;     // are we timing a segment right now?
+    uint32_t rtt_seq = 0;            // the sample completes when this sequence number is acknowledged
+    Time     rtt_start{};
+
+    // flow control and efficiency
+    bool     nodelay = false;        // true = TCP_NODELAY: switch Nagle's algorithm off
+    uint32_t max_snd_wnd = 0;        // largest window the peer has ever advertised
+    uint32_t rcv_adv_edge = 0;       // right edge (rcv_nxt + window) of the window we last advertised
+    uint32_t unacked_segs = 0;       // data segments received since we last sent an ACK
+    bool     delack_armed = false;   // delayed-ACK timer
+    Time     delack_deadline{};
+    bool     persist_armed = false;  // zero-window probe timer
+    Time     persist_deadline{};
+    int      persist_backoff = 0;
+
 
     // application callbacks
     std::function<void()>   on_connected;

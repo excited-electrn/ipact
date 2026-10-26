@@ -20,6 +20,8 @@ struct TcpConfig {
     std::chrono::milliseconds time_wait{4000};
     std::optional<uint32_t> fixed_isn;
     uint32_t rng_seed = 95473;
+    int      max_retries = 8; 
+    std::chrono::milliseconds delayed_ack{40};
 };
 
 // The whole TCP protocol, with no knowledge of TUN devices, threads or the real clock.
@@ -48,6 +50,10 @@ public:
     void close(Tcb& t);
     void abort(Tcb& t);
 
+    // Moving bytes
+    size_t send(Tcb& t, std::span<const uint8_t> data); // returns number of bytes accepted
+    size_t read(Tcb& t, std::span<uint8_t> out); // returns 0 if nothing waiting
+
     size_t connection_count() const { return conns_.size(); }
 
 private:
@@ -70,11 +76,19 @@ private:
     void send_ack(Tcb& t);
     void send_reset_for(const Ipv4Header& ip, const TcpView& seg);
     uint32_t rcv_window(const Tcb& t) const;
-    uint16_t advertised_window(const Tcb& t, uint8_t flags) const;
+    uint16_t advertised_window(Tcb& t, uint8_t flags);
+    void maybe_send_window_update(Tcb& t);
 
     // timers.cpp
     void sent_new(Tcb& t);
     void acked_up_to(Tcb& t);
+    void arm_rto(Tcb& t);
+    void stop_rto(Tcb& t);
+    void on_rto(Tcb& t);            
+    void retransmit_head(Tcb& t);
+    void arm_delack(Tcb& t);
+    void arm_persist(Tcb& t);
+    void on_persist(Tcb& t);
 
     // options.cpp
     std::vector<uint8_t> build_options(const Tcb& t, uint8_t flags);

@@ -6,8 +6,25 @@ uint32_t TcpLayer::rcv_window(const Tcb& t) const {
     return static_cast<uint32_t>(t.recv_buf.free_space());
 }
 
-uint16_t TcpLayer::advertised_window(const Tcb& t, uint8_t /*flags*/) const {
-    return static_cast<uint16_t>(std::min<uint32_t>(rcv_window(t), 0xFFFF));
+uint16_t TcpLayer::advertised_window(Tcb& t, uint8_t flags) {
+    uint32_t free_space = rcv_window(t);
+    uint32_t wnd = free_space;
+    if (!(flags & flag::SYN)) {
+        uint32_t promised = seq_gt(t.rcv_adv_edge, t.rcv_nxt) ? t.rcv_adv_edge - t.rcv_nxt : 0;
+        uint32_t step = std::min<uint32_t>(t.mss, uint32_t(t.recv_buf.capacity() / 2));
+        if (free_space > promised && free_space - promised < step) wnd = promised;   // growth too small
+        if (wnd > free_space) wnd = free_space;                                      // never promise more than we have
+    }
+    t.rcv_adv_edge = t.rcv_nxt + wnd;
+    return static_cast<uint16_t>(std::min<uint32_t>(wnd, 0xFFFF));
+}
+
+
+void TcpLayer::maybe_send_window_update(Tcb& t) {
+    if (t.fin_received) return;                              // the peer will not send more anyway
+    uint32_t promised = seq_gt(t.rcv_adv_edge, t.rcv_nxt) ? t.rcv_adv_edge - t.rcv_nxt : 0;
+    uint32_t step = std::min<uint32_t>(t.mss, uint32_t(t.recv_buf.capacity() / 2));
+    if (rcv_window(t) >= promised + step) send_ack(t);
 }
 
 void TcpLayer::send_raw(uint32_t src_ip, uint32_t dst_ip, const TcpHeader& h,
@@ -24,6 +41,7 @@ void TcpLayer::emit(Tcb& t, uint32_t seq, uint8_t flags, std::span<const uint8_t
     h.ack = (flags & flag::ACK) ? t.rcv_nxt : 0;
     h.flags = flags;
     h.window = advertised_window(t, flags);
+    if (flags & flag::ACK) { t.unacked_segs = 0; t.delack_armed = false; }
     auto opts = build_options(t, flags);
     send_raw(t.key.local_ip, t.key.remote_ip, h, opts, payload);
 }
