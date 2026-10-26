@@ -66,19 +66,28 @@ inline std::optional<TcpView> parse_tcp(uint32_t src_ip, uint32_t dst_ip, std::s
 }
 
 inline std::vector<uint8_t> build_tcp(uint32_t src_ip, uint32_t dst_ip, const TcpHeader& h,
+                                      std::span<const uint8_t> options,
                                       std::span<const uint8_t> payload) {
-    std::vector<uint8_t> s(20 + payload.size());
+    const size_t hlen = 20 + options.size();
+    std::vector<uint8_t> s(hlen + payload.size());
     write_big_endian_16(s, 0, h.src_port);
     write_big_endian_16(s, 2, h.dst_port);
     write_big_endian_32(s, 4, h.seq);
     write_big_endian_32(s, 8, h.ack);
-    s[12] = 5 << 4;
+    s[12] = uint8_t((hlen / 4) << 4);
     s[13] = h.flags;
     write_big_endian_16(s, 14, h.window);
     write_big_endian_16(s, 16, 0);
     write_big_endian_16(s, 18, 0);
 
-    std::copy(payload.begin(), payload.end(), s.begin() + 20);
+    std::copy(options.begin(), options.end(), s.begin() + 20);
+    std::copy(payload.begin(), payload.end(), s.begin() + static_cast<std::ptrdiff_t>(hlen));
     write_big_endian_16(s, 16, tcp_checksum(src_ip, dst_ip, s));
     return s;
+}
+
+// No options version
+inline std::vector<uint8_t> build_tcp(uint32_t src_ip, uint32_t dst_ip, const TcpHeader& h,
+                                      std::span<const uint8_t> payload) {
+    return build_tcp(src_ip, dst_ip, h, std::span<const uint8_t>{}, payload);
 }

@@ -26,4 +26,4 @@ constexpr bool seq_in_range(uint32_t x, uint32_t lo, uint32_t hi) {
 static_assert(seq_leq(1, 2));
 static_assert(seq_lt(0xFFFFFFF0u, 5));
 static_assert(!seq_lt(5, 0xFFFFFFF0u));
-static_assert(seq_in_range(3, 0xFFFFFFFEu, 10))
+static_assert(seq_in_range(3, 0xFFFFFFFEu, 10));
