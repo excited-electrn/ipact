@@ -1,5 +1,11 @@
 # Testing and development
 
+## GitHub Actions
+
+The [build workflow](../.github/workflows/ci.yml) runs on Ubuntu 24.04 for every push and pull request. It can also be started manually from the Actions page. It configures a Debug build, compiles the library and all examples and tests, then runs the three CTest programs. A failed build or test fails the workflow. Each test has a limit of 120 seconds, and the whole job has a limit of 15 minutes.
+
+The workflow uses the build tools already installed on the Ubuntu runner. Tests run without root access or a TUN interface.
+
 ## Build and run tests
 
 Use a Linux shell from the repository root.
