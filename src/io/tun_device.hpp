@@ -1,0 +1,52 @@
+#pragma once
+#include <fcntl.h>
+#include <linux/if.h>
+#include <linux/if_tun.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <system_error>
+
+// RAII wrapper: the file descriptor is closed automatically in the destructor.
+class TunDevice {
+public:
+    explicit TunDevice(const std::string& name) {
+        fd_ = ::open("/dev/net/tun", O_RDWR | O_CLOEXEC);
+        if (fd_ < 0) throw std::system_error(errno, std::generic_category(), "open /dev/net/tun");
+
+        ifreq ifr{};
+        ifr.ifr_flags = IFF_TUN | IFF_NO_PI;                    // layer 3, no extra 4-byte header
+        std::strncpy(ifr.ifr_name, name.c_str(), IFNAMSIZ - 1); // e.g. "tun0"
+        if (::ioctl(fd_, TUNSETIFF, &ifr) < 0) {
+            int e = errno;
+            ::close(fd_);
+            throw std::system_error(e, std::generic_category(), "ioctl TUNSETIFF");
+        }
+        name_ = ifr.ifr_name;
+    }
+    ~TunDevice() { if (fd_ >= 0) ::close(fd_); }
+
+    TunDevice(const TunDevice&) = delete;                 // a file descriptor has one owner
+    TunDevice& operator=(const TunDevice&) = delete;
+    TunDevice(TunDevice&& o) noexcept : fd_(o.fd_), name_(std::move(o.name_)) { o.fd_ = -1; }
+
+    // Blocks until one whole IP packet arrives. Returns its length (0 on error).
+    // Each read() returns exactly ONE packet, never a partial one. Buffer must be >= MTU.
+    ssize_t read_packet(std::span<uint8_t> buf) { return ::read(fd_, buf.data(), buf.size()); }
+
+    // Each write() injects exactly ONE packet into the kernel.
+    ssize_t write_packet(std::span<const uint8_t> pkt) { return ::write(fd_, pkt.data(), pkt.size()); }
+
+    int fd() const { return fd_; }
+    const std::string& name() const { return name_; }
+
+private:
+    int fd_ = -1;
+    std::string name_;
+};
